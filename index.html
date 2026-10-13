@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>遊戲價格股票換算器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07070b;
+    --panel: rgba(18, 18, 26, 0.92);
+    --yellow: #fcee0a;
+    --yellow-dim: rgba(252, 238, 10, 0.35);
+    --cyan: #00f0ff;
+    --red: #ff003c;
+    --text: #e8e6d9;
+    --muted: #8a8778;
+    --cut: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(252,238,10,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(252,238,10,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    color: var(--text);
+    font-family: "Rajdhani", "Noto Sans TC", sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+  }
+  /* 掃描線 */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0 1px, transparent 1px 3px);
+    z-index: 100;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 48px; }
+
+  /* ===== 標題 ===== */
+  header { margin-bottom: 28px; border-bottom: 2px solid var(--yellow); padding-bottom: 16px; position: relative; }
+  header::after {
+    content: ""; position: absolute; right: 0; bottom: -2px;
+    width: 180px; height: 6px; background: var(--yellow);
+    clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .sys { font-family: "Share Tech Mono", monospace; color: var(--cyan); font-size: 13px; letter-spacing: 1px; }
+  .sys .red { color: var(--red); }
+  .glitch {
+    position: relative; display: inline-block;
+    font-family: "Orbitron", sans-serif; font-weight: 900;
+    font-size: clamp(32px, 5vw, 54px); letter-spacing: 4px;
+    color: var(--yellow); text-transform: uppercase; margin: 6px 0 2px;
+    text-shadow: 0 0 18px rgba(252,238,10,0.35);
+  }
+  .glitch::before, .glitch::after {
+    content: attr(data-text); position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    overflow: hidden;
+  }
+  .glitch::before { color: var(--red); left: 3px; animation: glitch-a 3.2s infinite linear alternate-reverse; }
+  .glitch::after  { color: var(--cyan); left: -3px; animation: glitch-b 2.6s infinite linear alternate-reverse; }
+  @keyframes glitch-a {
+    0%, 86% { clip-path: inset(0 0 100% 0); }
+    88% { clip-path: inset(10% 0 60% 0); }
+    90% { clip-path: inset(50% 0 20% 0); }
+    92% { clip-path: inset(80% 0 5% 0); }
+    94%, 100% { clip-path: inset(0 0 100% 0); }
+  }
+  @keyframes glitch-b {
+    0%, 80% { clip-path: inset(0 0 100% 0); }
+    83% { clip-path: inset(65% 0 10% 0); }
+    86% { clip-path: inset(20% 0 55% 0); }
+    89%, 100% { clip-path: inset(0 0 100% 0); }
+  }
+  .subtitle { font-family: "Noto Sans TC", sans-serif; font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: 3px; }
+
+  /* ===== 版面 ===== */
+  .grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border-left: 3px solid var(--yellow);
+    padding: 22px 22px 24px;
+    margin-bottom: 20px;
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+    position: relative;
+  }
+  .panel.cyan { border-left-color: var(--cyan); }
+  .panel-title {
+    font-family: "Orbitron", sans-serif; font-weight: 700; font-size: 14px;
+    color: var(--yellow); letter-spacing: 2px; margin-bottom: 4px;
+  }
+  .panel.cyan .panel-title { color: var(--cyan); }
+  .panel-sub { font-family: "Noto Sans TC", sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  .hint { font-family: "Share Tech Mono", "Noto Sans TC", monospace; font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .hint.warn { color: var(--red); }
+
+  /* ===== 輸入 ===== */
+  label { display: block; font-family: "Noto Sans TC", sans-serif; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .field { margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; }
+  .row > * { flex: 1; }
+  .row.tight > .grow { flex: 2; }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: #000; color: var(--cyan);
+    border: 1px solid rgba(0,240,255,0.25); border-bottom: 2px solid var(--yellow);
+    padding: 10px 12px;
+    font-family: "Share Tech Mono", "Noto Sans TC", monospace; font-size: 17px;
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,0.35); }
+  input::placeholder { color: #44443c; }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--yellow); color: #000; border: none; cursor: pointer;
+    font-family: "Orbitron", "Noto Sans TC", sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1.5px;
+    padding: 11px 18px; text-decoration: none; white-space: nowrap;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    transition: background .15s, transform .1s;
+  }
+  .btn:hover { background: var(--cyan); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: transparent; color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); }
+  .btn.ghost:hover { background: rgba(0,240,255,0.12); }
+  .btn.big { width: 100%; font-size: 18px; padding: 16px; letter-spacing: 4px; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+
+  /* 搜尋結果 */
+  .results { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+  .result {
+    display: flex; align-items: center; gap: 10px; text-align: left;
+    background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2);
+    color: var(--text); padding: 6px 10px; cursor: pointer;
+    font-family: "Rajdhani", "Noto Sans TC", sans-serif; font-size: 15px; font-weight: 600;
+  }
+  .result:hover, .result.active { border-color: var(--yellow); background: rgba(252,238,10,0.08); }
+  .result img { width: 72px; height: 27px; object-fit: cover; flex-shrink: 0; background: #111; }
+  .result .usd { margin-left: auto; font-family: "Share Tech Mono", monospace; color: var(--muted); font-size: 13px; }
+
+  .tag {
+    display: inline-block; font-family: "Share Tech Mono", monospace; font-size: 11px;
+    padding: 2px 8px; margin-left: 6px; vertical-align: middle; letter-spacing: 1px;
+  }
+  .tag.auto { background: var(--cyan); color: #000; }
+  .tag.manual { background: var(--red); color: #fff; }
+  .tag.none { background: #333; color: var(--muted); }
+  .discount { font-family: "Share Tech Mono", monospace; color: var(--red); font-size: 14px; margin-left: 4px; }
+
+  /* ===== 結果 ===== */
+  .card { margin-bottom: 20px; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .card-head .amount { font-family: "Share Tech Mono", monospace; font-size: 26px; color: var(--text); }
+  .etf { padding: 12px 0; border-top: 1px dashed rgba(252,238,10,0.2); }
+  .etf:first-of-type { border-top: none; }
+  .etf-name { font-family: "Noto Sans TC", sans-serif; font-size: 13px; color: var(--muted); }
+  .etf-name b { font-family: "Orbitron", sans-serif; color: var(--cyan); font-size: 14px; margin-right: 6px; }
+  .big-num {
+    font-family: "Share Tech Mono", monospace; font-size: clamp(34px, 4.2vw, 48px);
+    color: var(--yellow); line-height: 1.1;
+    text-shadow: 0 0 14px rgba(252,238,10,0.45);
+  }
+  .big-num small { font-size: 18px; color: var(--text); text-shadow: none; margin-left: 6px; font-family: "Noto Sans TC", sans-serif; }
+  .detail { font-family: "Noto Sans TC", sans-serif; font-size: 14px; color: var(--text); opacity: .85; margin-top: 2px; }
+  .card.diff .big-num { color: var(--red); text-shadow: 0 0 14px rgba(255,0,60,0.45); }
+  .empty { color: #3d3d36; text-shadow: none; }
+
+  /* 系統紀錄 */
+  .log {
+    font-family: "Share Tech Mono", "Noto Sans TC", monospace; font-size: 12px; line-height: 1.7;
+    color: var(--muted); max-height: 150px; overflow-y: auto;
+  }
+  .log .ok { color: var(--cyan); }
+  .log .err { color: var(--red); }
+
+  footer { margin-top: 18px; font-family: "Noto Sans TC", sans-serif; font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .glitch::before, .glitch::after { animation: none; display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="sys">// SYS.BOOT <span class="red">■</span> DATA_SYNC: <span id="syncDate">----</span></div>
+    <h1 class="glitch" data-text="GAME → STOCK">GAME → STOCK</h1>
+    <div class="subtitle">遊戲價格股票換算器</div>
+  </header>
+
+  <div class="grid">
+    <!-- ===== 左邊：輸入區 ===== -->
+    <div>
+      <section class="panel">
+        <div class="panel-title">01 // TARGET_GAME</div>
+        <div class="panel-sub">搜尋遊戲</div>
+        <div class="row tight">
+          <input class="grow" type="text" id="gameName" placeholder="輸入遊戲英文名稱，例如 Cyberpunk 2077">
+          <button class="btn" id="searchBtn" style="flex:0 0 auto">搜尋</button>
+        </div>
+        <div class="results" id="results"></div>
+        <div style="margin-top:12px">
+          <a class="btn ghost" id="steamdbBtn" href="https://steamdb.info/" target="_blank" rel="noopener">查詢 SteamDB ↗</a>
+        </div>
+        <div class="hint">// 遊戲資料來自 CheapShark，用英文名稱搜尋比較容易找到。</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">02 // PRICE_DATA</div>
+        <div class="panel-sub">遊戲價格（台幣）<span class="tag none" id="priceTag">尚未載入</span></div>
+        <div class="row">
+          <div class="field"><label>原價 NT$</label><input type="number" id="pOrig" min="0" step="1"></div>
+          <div class="field"><label>現在價格 NT$ <span class="discount" id="discount"></span></label><input type="number" id="pNow" min="0" step="1"></div>
+          <div class="field"><label>歷史最低價 NT$</label><input type="number" id="pLow" min="0" step="1"></div>
+        </div>
+        <div class="field" style="max-width:220px">
+          <label>匯率 USD → TWD <span class="tag none" id="rateTag">-</span></label>
+          <input type="number" id="rate" min="0" step="0.01">
+        </div>
+        <div class="hint" id="priceSource">// 自動價格為美國 Steam 商店的美元價換算，只能當參考，請以 SteamDB 為準，可直接修改上面的數字。</div>
+        <div class="hint warn">// 注意：CheapShark 的「歷史最低價」是所有遊戲商店的最低價，不一定是 Steam 的史低。</div>
+      </section>
+
+      <section class="panel cyan">
+        <div class="panel-title">03 // MARKET_DATA</div>
+        <div class="panel-sub">ETF 股價（台幣）</div>
+        <div class="row">
+          <div class="field">
+            <label>0050 元大台灣50 <span class="tag none" id="tag0050">-</span></label>
+            <input type="number" id="s0050" min="0" step="0.01">
+          </div>
+          <div class="field">
+            <label>00646 元大S&amp;P500 <span class="tag none" id="tag00646">-</span></label>
+            <input type="number" id="s00646" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="hint" id="stockInfo">// 載入中……</div>
+        <div style="margin-top:12px"><button class="btn ghost" id="reloadStock">重新抓取股價</button></div>
+      </section>
+
+      <button class="btn big" id="calcBtn">換算 // EXECUTE</button>
+    </div>
+
+    <!-- ===== 右邊：結果區 ===== -->
+    <div>
+      <section class="panel card">
+        <div class="card-head">
+          <div><div class="panel-title">04 // CURRENT_PRICE</div><div class="panel-sub" style="margin:0">現在價格等於</div></div>
+          <div class="amount" id="rNowAmt">NT$ —</div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>0050</b>元大台灣50</div>
+          <div class="big-num" id="rNow0050"><span class="empty">—</span></div>
+          <div class="detail" id="rNow0050d">&nbsp;</div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>00646</b>元大S&amp;P500</div>
+          <div class="big-num" id="rNow00646"><span class="empty">—</span></div>
+          <div class="detail" id="rNow00646d">&nbsp;</div>
+        </div>
+      </section>
+
+      <section class="panel card">
+        <div class="card-head">
+          <div><div class="panel-title">05 // HISTORICAL_LOW</div><div class="panel-sub" style="margin:0">歷史最低價等於</div></div>
+          <div class="amount" id="rLowAmt">NT$ —</div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>0050</b>元大台灣50</div>
+          <div class="big-num" id="rLow0050"><span class="empty">—</span></div>
+          <div class="detail" id="rLow0050d">&nbsp;</div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>00646</b>元大S&amp;P500</div>
+          <div class="big-num" id="rLow00646"><span class="empty">—</span></div>
+          <div class="detail" id="rLow00646d">&nbsp;</div>
+        </div>
+      </section>
+
+      <section class="panel card diff">
+        <div class="card-head">
+          <div><div class="panel-title" style="color:var(--red)">06 // PRICE_GAP</div><div class="panel-sub" style="margin:0">等到史低可以省</div></div>
+          <div class="amount" id="rDiffAmt">NT$ —</div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>0050</b>可以多買</div>
+          <div class="big-num" id="rDiff0050"><span class="empty">—</span></div>
+        </div>
+        <div class="etf">
+          <div class="etf-name"><b>00646</b>可以多買</div>
+          <div class="big-num" id="rDiff00646"><span class="empty">—</span></div>
+        </div>
+      </section>
+
+      <section class="panel cyan">
+        <div class="panel-title">// SYSTEM_LOG</div>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    // 本網頁只做數字換算，不判斷值不值得買，也不構成任何投資建議。股價為收盤價，未計算手續費。<br>
+    // 介面風格參考 cyberpunk 電玩介面，與任何遊戲公司無關。
+  </footer>
+</div>
+
+<script>
+/* ========== 小工具 ========== */
+const $ = (s) => document.querySelector(s);
+const today = () => new Date().toISOString().slice(0, 10);
+
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+function log(msg, type = "") {
+  const t = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement("div");
+  if (type) line.className = type;
+  line.textContent = `[${t}] > ${msg}`;
+  $("#log").prepend(line);
+}
+
+async function fetchJSON(url, timeout = 10000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function setTag(el, type, text) {
+  el.className = "tag " + type;
+  el.textContent = text;
+}
+
+const num = (sel) => {
+  const v = parseFloat($(sel).value);
+  return isFinite(v) && v > 0 ? v : null;
+};
+
+/* ========== 匯率 ========== */
+async function loadRate() {
+  try {
+    const j = await fetchJSON("https://open.er-api.com/v6/latest/USD");
+    const r = j && j.rates && j.rates.TWD;
+    if (!r) throw new Error("沒有 TWD 資料");
+    const date = j.time_last_update_unix ? new Date(j.time_last_update_unix * 1000).toISOString().slice(0, 10) : today();
+    $("#rate").value = r.toFixed(2);
+    store.set("rate", { value: r, date, src: "AUTO" });
+    setTag($("#rateTag"), "auto", "AUTO " + date);
+    log(`匯率同步成功：1 USD = ${r.toFixed(2)} TWD（${date}）`, "ok");
+  } catch (e) {
+    const saved = store.get("rate");
+    if (saved) {
+      $("#rate").value = Number(saved.value).toFixed(2);
+      setTag($("#rateTag"), "manual", "上次 " + saved.date);
+      log(`匯率抓取失敗，使用上次的數字（${saved.date}）`, "err");
+    } else {
+      setTag($("#rateTag"), "manual", "請手動輸入");
+      log("匯率抓取失敗，請手動輸入匯率", "err");
+    }
+  }
+}
+
+$("#rate").addEventListener("change", () => {
+  const v = num("#rate");
+  if (!v) return;
+  store.set("rate", { value: v, date: today(), src: "MANUAL" });
+  setTag($("#rateTag"), "manual", "手動 " + today());
+  if (lastUSD) fillPricesFromUSD();
+});
+
+/* ========== ETF 股價 ========== */
+const ETFS = ["0050", "00646"];
+
+// 來源 1：FinMind（最近兩週的日資料，取最後一筆收盤價）
+async function fromFinMind(id) {
+  const start = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+  const j = await fetchJSON(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${start}`);
+  if (!j || !Array.isArray(j.data) || !j.data.length) throw new Error("FinMind 沒有資料");
+  const last = j.data[j.data.length - 1];
+  const price = parseFloat(last.close);
+  if (!price) throw new Error("FinMind 價格錯誤");
+  return { price, date: last.date, src: "FinMind" };
+}
+
+// 來源 2：台灣證交所 OpenAPI（全部股票的當日收盤）
+let twsePromise = null;
+function rocToDate(s) {
+  s = String(s || "");
+  if (/^\d{7}$/.test(s)) return `${+s.slice(0, 3) + 1911}-${s.slice(3, 5)}-${s.slice(5, 7)}`;
+  return s || today();
+}
+async function fromTWSE(id) {
+  if (!twsePromise) twsePromise = fetchJSON("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", 15000);
+  const all = await twsePromise;
+  const row = Array.isArray(all) && all.find((r) => r.Code === id);
+  if (!row) throw new Error("證交所沒有這檔資料");
+  const price = parseFloat(String(row.ClosingPrice).replace(/,/g, ""));
+  if (!price) throw new Error("證交所價格錯誤");
+  return { price, date: rocToDate(row.Date), src: "TWSE" };
+}
+
+async function loadStock(id) {
+  const tag = $("#tag" + id);
+  setTag(tag, "none", "同步中…");
+  for (const source of [fromFinMind, fromTWSE]) {
+    try {
+      const r = await source(id);
+      $("#s" + id).value = r.price;
+      store.set("stock_" + id, { price: r.price, date: r.date, src: "AUTO" });
+      setTag(tag, "auto", "AUTO " + r.date);
+      log(`${id} 股價同步成功：NT$${r.price}（${r.src}，${r.date} 收盤）`, "ok");
+      return true;
+    } catch (e) {
+      log(`${id} 從 ${source === fromFinMind ? "FinMind" : "證交所"} 抓取失敗：${e.message}`, "err");
+    }
+  }
+  // 全部失敗 → 用上次存的數字
+  const saved = store.get("stock_" + id);
+  if (saved) {
+    $("#s" + id).value = saved.price;
+    setTag(tag, "manual", "上次 " + saved.date);
+    log(`${id} 使用上次的股價 NT$${saved.price}（${saved.date}）`);
+  } else {
+    setTag(tag, "manual", "請手動輸入");
+  }
+  return false;
+}
+
+async function loadStocks() {
+  $("#reloadStock").disabled = true;
+  $("#stockInfo").textContent = "// 正在同步股價……";
+  const ok = await Promise.all(ETFS.map(loadStock));
+  $("#stockInfo").textContent = ok.every(Boolean)
+    ? "// 股價為最近一個交易日的收盤價，不是即時價格。"
+    : "// 部分股價無法自動抓取，請手動輸入（網頁會記住你輸入的數字）。";
+  $("#reloadStock").disabled = false;
+}
+
+ETFS.forEach((id) => {
+  $("#s" + id).addEventListener("change", () => {
+    const v = num("#s" + id);
+    if (!v) return;
+    store.set("stock_" + id, { price: v, date: today(), src: "MANUAL" });
+    setTag($("#tag" + id), "manual", "手動 " + today());
+    log(`${id} 股價手動設定為 NT$${v}`);
+  });
+});
+$("#reloadStock").addEventListener("click", () => { twsePromise = null; loadStocks(); });
+
+/* ========== 遊戲搜尋（CheapShark） ========== */
+let lastUSD = null; // { retail, now, low, lowDate, steam }
+
+function steamdbSearch(name) {
+  $("#steamdbBtn").href = "https://steamdb.info/search/?a=app&q=" + encodeURIComponent(name);
+}
+
+async function searchGame() {
+  const name = $("#gameName").value.trim();
+  if (!name) { $("#gameName").focus(); return; }
+  steamdbSearch(name);
+  const box = $("#results");
+  box.innerHTML = '<div class="hint">// 搜尋中……</div>';
+  $("#searchBtn").disabled = true;
+  try {
+    const list = await fetchJSON(`https://www.cheapshark.com/api/1.0/games?title=${encodeURIComponent(name)}&limit=8`);
+    box.innerHTML = "";
+    if (!Array.isArray(list) || !list.length) {
+      box.innerHTML = '<div class="hint warn">// 找不到這款遊戲，試試英文名稱，或直接按「查詢 SteamDB」手動填價格。</div>';
+      log(`搜尋「${name}」沒有結果`, "err");
+      return;
+    }
+    log(`搜尋「${name}」找到 ${list.length} 筆結果`, "ok");
+    list.forEach((g) => {
+      const b = document.createElement("button");
+      b.className = "result";
+      b.type = "button";
+      const img = document.createElement("img");
+      img.src = g.thumb || "";
+      img.alt = "";
+      img.onerror = () => (img.style.visibility = "hidden");
+      const title = document.createElement("span");
+      title.textContent = g.external;
+      const usd = document.createElement("span");
+      usd.className = "usd";
+      usd.textContent = "$" + g.cheapest;
+      b.append(img, title, usd);
+      b.addEventListener("click", () => {
+        box.querySelectorAll(".result").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        selectGame(g);
+      });
+      box.append(b);
+    });
+    if (list.length === 1) box.querySelector(".result").click();
+  } catch (e) {
+    box.innerHTML = '<div class="hint warn">// 無法連線到遊戲資料庫，請按「查詢 SteamDB」手動填價格。</div>';
+    log("CheapShark 連線失敗：" + e.message, "err");
+  } finally {
+    $("#searchBtn").disabled = false;
+  }
+}
+
+async function selectGame(g) {
+  setTag($("#priceTag"), "none", "載入中…");
+  try {
+    const d = await fetchJSON(`https://www.cheapshark.com/api/1.0/games?id=${g.gameID}`);
+    const deals = (d && d.deals) || [];
+    const steamDeal = deals.find((x) => String(x.storeID) === "1");
+    const deal = steamDeal || deals[0];
+    if (!deal) throw new Error("沒有價格資料");
+    const low = d.cheapestPriceEver || {};
+    lastUSD = {
+      title: (d.info && d.info.title) || g.external,
+      retail: parseFloat(deal.retailPrice),
+      now: parseFloat(deal.price),
+      low: parseFloat(low.price),
+      lowDate: low.date ? new Date(low.date * 1000).toISOString().slice(0, 10) : "未知",
+      steam: !!steamDeal
+    };
+    const appId = (d.info && d.info.steamAppID) || g.steamAppID;
+    if (appId) $("#steamdbBtn").href = `https://steamdb.info/app/${appId}/`;
+    else steamdbSearch(lastUSD.title);
+    fillPricesFromUSD();
+    log(`載入「${lastUSD.title}」價格成功${lastUSD.steam ? "" : "（Steam 沒有列出，改用其他商店價格）"}`, "ok");
+  } catch (e) {
+    setTag($("#priceTag"), "manual", "請手動輸入");
+    log("載入遊戲價格失敗：" + e.message, "err");
+  }
+}
+
+function fillPricesFromUSD() {
+  if (!lastUSD) return;
+  const rate = num("#rate");
+  const u = lastUSD;
+  $("#priceSource").textContent =
+    `// 來源：CheapShark（${u.steam ? "Steam 美國區" : "非 Steam 商店"}）原價 $${u.retail} / 現價 $${u.now} / 史低 $${u.low}（${u.lowDate}）。只能當參考，請以 SteamDB 為準。`;
+  if (!rate) {
+    setTag($("#priceTag"), "manual", "缺匯率");
+    log("沒有匯率，無法換算成台幣，請先輸入匯率", "err");
+    return;
+  }
+  $("#pOrig").value = Math.round(u.retail * rate);
+  $("#pNow").value = Math.round(u.now * rate);
+  $("#pLow").value = isFinite(u.low) ? Math.round(u.low * rate) : "";
+  setTag($("#priceTag"), "auto", "AUTO 美元換算");
+  updateDiscount();
+}
+
+function updateDiscount() {
+  const o = num("#pOrig"), n = num("#pNow");
+  $("#discount").textContent = o && n && n < o ? `-${Math.round((1 - n / o) * 100)}%` : "";
+}
+["#pOrig", "#pNow", "#pLow"].forEach((s) =>
+  $(s).addEventListener("input", () => {
+    setTag($("#priceTag"), "manual", "手動修改");
+    updateDiscount();
+  })
+);
+
+$("#searchBtn").addEventListener("click", searchGame);
+$("#gameName").addEventListener("keydown", (e) => { if (e.key === "Enter") searchGame(); });
+$("#gameName").addEventListener("input", () => steamdbSearch($("#gameName").value.trim()));
+
+/* ========== 換算 ========== */
+function shares(amount, price) {
+  const exact = amount / price;
+  const whole = Math.floor(exact + 1e-9);
+  return { exact, whole, rem: amount - whole * price };
+}
+
+const fmt = (n, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// 數字亂跳後停在答案
+function scramble(el, finalHTML, sample) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { el.innerHTML = finalHTML; return; }
+  const len = Math.max(String(sample).length, 4);
+  let n = 0;
+  const timer = setInterval(() => {
+    let s = "";
+    for (let i = 0; i < len; i++) s += i === len - 3 ? "." : Math.floor(Math.random() * 10);
+    el.innerHTML = s + "<small>股</small>";
+    if (++n > 16) { clearInterval(timer); el.innerHTML = finalHTML; }
+  }, 45);
+}
+
+function showShares(prefix, amount, stocks) {
+  ETFS.forEach((id) => {
+    const r = shares(amount, stocks[id]);
+    const text = fmt(r.exact);
+    scramble($(`#${prefix}${id}`), `≈ ${text}<small>股</small>`, text);
+    const d = $(`#${prefix}${id}d`);
+    if (d) d.textContent = `實際可買 ${r.whole.toLocaleString()} 股，剩 NT$${Math.round(r.rem).toLocaleString()}（股價 NT$${stocks[id]}）`;
+  });
+}
+
+function calculate() {
+  const now = num("#pNow"), low = num("#pLow");
+  const stocks = { "0050": num("#s0050"), "00646": num("#s00646") };
+
+  if (!stocks["0050"] || !stocks["00646"]) {
+    log("缺少股價，請先輸入 0050 和 00646 的股價", "err");
+    alertField(!stocks["0050"] ? "#s0050" : "#s00646");
+    return;
+  }
+  if (!now) {
+    log("請先輸入現在價格", "err");
+    alertField("#pNow");
+    return;
+  }
+
+  $("#rNowAmt").textContent = "NT$ " + now.toLocaleString();
+  showShares("rNow", now, stocks);
+
+  if (low) {
+    $("#rLowAmt").textContent = "NT$ " + low.toLocaleString();
+    showShares("rLow", low, stocks);
+    const diff = now - low;
+    $("#rDiffAmt").textContent = "NT$ " + Math.max(diff, 0).toLocaleString();
+    if (diff > 0) {
+      ETFS.forEach((id) => {
+        const text = fmt(diff / stocks[id]);
+        scramble($("#rDiff" + id), `+ ${text}<small>股</small>`, text);
+      });
+    } else {
+      ETFS.forEach((id) => ($("#rDiff" + id).innerHTML = '<small style="margin:0">現在價格已經是史低（或更低）</small>'));
+    }
+  } else {
+    log("沒有歷史最低價，只換算現在價格", "err");
+  }
+  log(`換算完成：現在價格 NT$${now}${low ? `，史低 NT$${low}` : ""}`, "ok");
+}
+
+function alertField(sel) {
+  const el = $(sel);
+  el.focus();
+  el.style.boxShadow = "0 0 14px rgba(255,0,60,0.8)";
+  setTimeout(() => (el.style.boxShadow = ""), 1200);
+}
+
+$("#calcBtn").addEventListener("click", calculate);
+
+/* ========== 啟動 ========== */
+$("#syncDate").textContent = today();
+log("系統啟動，開始同步市場資料……");
+loadRate();
+loadStocks();
+</script>
+</body>
+</html>
