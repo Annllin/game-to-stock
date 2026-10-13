@@ -251,6 +251,7 @@
 
     <!-- ===== 右邊：結果區 ===== -->
     <div>
+      <div class="sys" id="rGame" style="margin-bottom:10px">// TARGET: 尚未選擇遊戲</div>
       <section class="panel card">
         <div class="card-head">
           <div><div class="panel-title">04 // CURRENT_PRICE</div><div class="panel-sub" style="margin:0">現在價格等於</div></div>
@@ -499,7 +500,7 @@ async function searchGame() {
       title.textContent = g.external;
       const usd = document.createElement("span");
       usd.className = "usd";
-      usd.textContent = "$" + g.cheapest;
+      usd.textContent = "全商店最低 $" + g.cheapest;
       b.append(img, title, usd);
       b.addEventListener("click", () => {
         box.querySelectorAll(".result").forEach((x) => x.classList.remove("active"));
@@ -537,6 +538,7 @@ async function selectGame(g) {
     const appId = (d.info && d.info.steamAppID) || g.steamAppID;
     if (appId) $("#steamdbBtn").href = `https://steamdb.info/app/${appId}/`;
     else steamdbSearch(lastUSD.title);
+    $("#rGame").textContent = "// TARGET: " + lastUSD.title;
     fillPricesFromUSD();
     log(`載入「${lastUSD.title}」價格成功${lastUSD.steam ? "" : "（Steam 沒有列出，改用其他商店價格）"}`, "ok");
   } catch (e) {
@@ -561,6 +563,8 @@ function fillPricesFromUSD() {
   $("#pLow").value = isFinite(u.low) ? Math.round(u.low * rate) : "";
   setTag($("#priceTag"), "auto", "AUTO 美元換算");
   updateDiscount();
+  // 第二版：價格和股價都有了就自動換算
+  if (num("#s0050") && num("#s00646")) calculate();
 }
 
 function updateDiscount() {
